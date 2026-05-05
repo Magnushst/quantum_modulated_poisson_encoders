@@ -1,2 +1,0 @@
-device,torch,python,platform,gpu,cuda,vram_gb
-cuda,2.5.1,3.12.13,Windows-11-10.0.26200-SP0,NVIDIA GeForce RTX 4070 Laptop GPU,12.4,8.59
