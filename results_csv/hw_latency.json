@@ -1,0 +1,38 @@
+{
+  "gpu": "NVIDIA H100 PCIe",
+  "torch": "2.7.0",
+  "cuda": "12.8",
+  "platform": "Linux-6.8.0-1046-nvidia-x86_64-with-glibc2.35",
+  "pcie_roundtrip": {
+    "median_ms": 0.027466999995340302,
+    "p95_ms": 0.03216399997540975
+  },
+  "per_sample_T_core_ms": {
+    "1": 1.07373,
+    "16": 0.05689,
+    "64": 0.03493,
+    "256": 0.03182
+  },
+  "overhead_model_check": {
+    "1": {
+      "T_core_ms": 1.0737,
+      "T_per_sample_ms": 1.07373,
+      "pcie_measured_overhead_pct": 2.494
+    },
+    "16": {
+      "T_core_ms": 0.9102,
+      "T_per_sample_ms": 0.05689,
+      "pcie_measured_overhead_pct": 2.929
+    },
+    "64": {
+      "T_core_ms": 2.2356,
+      "T_per_sample_ms": 0.03493,
+      "pcie_measured_overhead_pct": 1.214
+    },
+    "256": {
+      "T_core_ms": 8.1464,
+      "T_per_sample_ms": 0.03182,
+      "pcie_measured_overhead_pct": 0.336
+    }
+  }
+}
