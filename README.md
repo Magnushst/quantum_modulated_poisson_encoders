@@ -1,137 +1,118 @@
-# Quantum-Modulated Poisson Encoder for Hybrid QPU Workloads
+# Quantum-Modulated Poisson Encoders for Hybrid QPU Workloads
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Reference implementation and benchmarking harness for the paper:
-
-> **Quantum-Modulated Poisson Encoders for Hybrid QPU Workloads: A
-> Closed-Form Hardware-Selection Frontier for Edge Inference**
-> Submitted to *IEEE Computer Architecture Letters*, 2026.
+Official benchmark implementation and measurement suite for the paper:
+**"Quantum-Modulated Poisson Encoders for Hybrid QPU Workloads: A Closed-Form
+Hardware-Selection Frontier for Edge Inference"** (IEEE Computer Architecture
+Letters, under review).
 
 ## Overview
 
-Hybrid classical-quantum systems suffer severe I/O latency bottlenecks
-when classical accelerators communicate with Quantum Processing Units
-(QPUs). The figures conventionally reported in the literature are
-measured at saturated batch sizes, which mask the latency-bound regime
-that motivates edge deployment.
+Hybrid classical-quantum inference is bottlenecked by the QPU-classical I/O
+interface, and the saturated-batch overhead figures common in the literature
+systematically understate the cost at the single-query ($B{=}1$) operating
+point. This repository provides a deterministic, reproducible workload --- a
+non-homogeneous Poisson encoder modulated by an 8-qubit Parametrised Quantum
+Circuit (PQC) --- that is **deliberately engineered so the quantum circuit is
+non-contributory to accuracy** (verified by a controlled, parameter-matched
+ablation). This circuit-independence is what allows the measured latency
+frontier to characterise the *interface* rather than any particular circuit.
 
-This repository provides a deterministic, reproducible workload
-generator — a non-homogeneous Poisson encoder modulated by a fixed,
-offline Parametrised Quantum Circuit (PQC) — and a benchmarking harness
-that characterises QPU-classical synchronisation overhead across five
-candidate physical integration paradigms. The PQC functions purely as a
-workload generator; a drive-ablation experiment confirms that the
-analysis isolates the cost of *querying* a quantum device, not the
-expressivity of the queried circuit.
+Key results reproduced by this repository:
 
-## Key Results
+* Cloud-API synchronisation penalty of **50.9%** at saturated batch
+  ($B{=}256$) rising to **98.3%** at $B{=}1$ on the Spiking Heidelberg Digits
+  (SHD) task.
+* A closed-form hardware-selection frontier
+  $\tau^{*}_{\mathrm{QPU}}(B;p) = (p/(1-p))\,T_{\mathrm{core}}(B)$.
+* A controlled drive ablation (PQC vs. parameter-matched classical head vs.
+  constant, depths $d\in\{1,2,4\}$, three seeds): **no quantum accuracy
+  advantage exists on this task**, by design and by measurement.
+* End-to-end validation of the additive overhead model on three real systems
+  (two local simulator backends and the `ibm_marrakesh` superconducting QPU):
+  unmodelled residual $\leq 0.53$ ms locally and $0.009\%$ on hardware.
+* A first-order cryogenic thermal-budget analysis showing monolithic TSV
+  integration --- the only latency-feasible paradigm at $B{=}1$ --- violates
+  the mK cooling budget by five to six orders of magnitude.
 
-- **Cloud-API quantum integration imposes a 50.9% synchronisation
-  penalty at saturated batch (B=256), rising to 98.3% at B=1.**
-- **Closed-form hardware-selection frontier:** the maximum tolerable
-  QPU round-trip for an overhead budget *p* is
-  τ*(B; p) = (p/(1−p)) · T_core(B). At p=1%, only Monolithic
-  Through-Silicon Via (TSV) integration meets the budget across the
-  full batch range B ∈ [1, 256]; even MCM-class chiplet integration
-  falls just outside the threshold at saturated batch.
-- **Measured PQC round-trip latencies** on two PennyLane simulator
-  backends (`default.qubit` 5.22 ms; `lightning.qubit` 1.67 ms)
-  bracket the latency of *local* quantum simulation as a realistic
-  upper bound on best-case quantum integration.
+## Repository layout
 
-## Components
+| File | Purpose | Output |
+|---|---|---|
+| `benckmark_programme.py` | Reference training/benchmark run (SHD, $W{=}4096$, $B{=}256$, 100 epochs) | `training_metrics.csv`, `seed_summary.csv`, `drive_ablation.csv`, figures |
+| `expressivity_probe.py` | Controlled ablation: input-conditioned PQC vs. parameter-matched classical head vs. constant, depths 1/2/4 | `expressivity.csv`, `expressivity_verdict.txt` |
+| `e2e_hybrid_validation.py` | End-to-end validation of the additive model with the PQC inline at $B{=}1$ (local backends + IBM hardware) | `e2e_validation.csv` |
+| `measure_e2e_latency.py` | Round-trip latency statistics: local PennyLane backends, loopback proxy, IBM cloud queue | `e2e_latency.csv` |
+| `measure_hw_latency.py` | Datacentre measurements (H100 PCIe): per-sample $T_{\mathrm{core}}(B)$ and PCIe DMA round-trip floor | `hw_latency.json` |
+| `thermal_model.py` | First-order cryogenic heat-balance vs. stage cooling budgets | `thermal_budget.csv` + chart |
+| `figure_camera_ready.py` | Camera-ready figure rcParams and the system-overview figure | `figures/` |
 
-- **Spatiotemporal proxy network:** a 1D temporal convolution
-  (`C_out=256`, `k=5`) over a dense INT4-quantised spatial projection,
-  followed by a Straight-Through-Estimator Poisson sampling layer and
-  an exponentially decayed temporal readout.
-- **PQC modulator:** an 8-qubit hardware-efficient ansatz (PennyLane;
-  `default.qubit` and `lightning.qubit` backends) used to generate a
-  fixed, offline λ(t) waveform. A classical sinusoidal surrogate is
-  used as a fallback when PennyLane is unavailable.
-- **Two-stage initialisation:** variance stabilisation followed by a
-  one-shot multiplicative gain calibration anchoring the encoder to a
-  target rate of 12.5 Hz; a rate-penalty regulariser maintains the rate
-  during training.
-- **Latency-overhead analysis:** five paradigms (Cloud, PCIe, MCM,
-  CPO, TSV) plus two measured PennyLane backends, evaluated at
-  saturated batch and across an inference batch sweep.
+## Measured vs. estimated quantities (disclosure)
 
-## Reproducibility
-
-All experiments are deterministic with `torch.manual_seed`,
-`numpy.random.seed`, `random.seed`, and
-`torch.backends.cudnn.deterministic=True`. The reference run uses seed
-42; multi-seed statistics are computed across seeds {1, 2, 3, 4, 5}.
-
-Hardware fingerprint of the reference run: NVIDIA RTX 4070 Laptop GPU
-(8.59 GB VRAM), CUDA 12.4, PyTorch 2.5.1, Python 3.12.13, Windows 11.
+Measured: local simulator round-trips (`default.qubit`, `lightning.qubit`),
+IBM open-plan cloud round-trips (queue-dominated; reported as such), PCIe DMA
+floor (H100 Gen5), all $T_{\mathrm{core}}(B)$ values, end-to-end hybrid
+residuals. **Estimated** (first-principles; labelled as such in the paper):
+warm cloud-API (50 ms), loaded PCIe (5 ms), MCM (0.5 ms), CPO (0.05 ms),
+TSV (0.5 us) --- no such hybrid hardware exists to measure. The end-to-end
+validation ensures these estimates feed a verified additive model.
 
 ## Requirements
 
-```bash
-pip install torch          # 2.5.1 used in the reference run
-pip install pennylane      # for the PQC; optional - falls back to sinusoid
-pip install pennylane-lightning  # for the lightning.qubit backend
-pip install h5py numpy matplotlib
-```
-
-The Spiking Heidelberg Digits (SHD) dataset is downloaded automatically
-on first run from `compneuro.net/datasets/`. If `h5py` is unavailable,
-a small random surrogate is used (only suitable for code testing).
-
-## Running the experiments
+Python 3.10+:
 
 ```bash
-MODE=main         python benchmark_programme.py   # ~5 minutes
-MODE=seeds        python benchmark_programme.py   # ~25 minutes
-MODE=ablation     python benchmark_programme.py   # ~15 minutes
-MODE=sweep        python benchmark_programme.py   # ~60 minutes
-MODE=pqc_latency  python benchmark_programme.py   # ~10 seconds
-MODE=all          python benchmark_programme.py   # full reproduction
+pip install torch pennylane numpy matplotlib h5py
+# optional, for the cloud measurements:
+pip install qiskit qiskit-ibm-runtime
 ```
 
-Wall-clock times above are measured on the reference hardware. The
-sensitivity sweep dominates total runtime; on lower-VRAM GPUs the
-`W=8192, B=256` configuration may suffer thermal/paging contamination
-and should be excluded.
+SHD dataset: download `shd_train.h5` / `shd_test.h5` from the University of
+Heidelberg repository into `./data/`.
 
-## Outputs
+## Reproducing the paper
 
-All artefacts are written to `publication_results/`:
+```bash
+# Reference workload and ablation (seeds 1-5 / 42, deterministic):
+python benckmark_programme.py
 
-| File                                | Source experiment      |
-|-------------------------------------|------------------------|
-| `fig1_latent_drive.{png,pdf,…}`     | `main`                 |
-| `raster_epoch_100.{…}`              | `main`                 |
-| `latency_overhead.{…}`              | `main`                 |
-| `latency_overhead_batch.{…}`        | `sweep`                |
-| `breakeven_scaling.{…}`             | `sweep`                |
-| `energy_breakdown.{…}`              | `main`                 |
-| `confusion_matrix.{…}`              | `main`                 |
-| `energy_pareto.{…}`                 | `sweep`                |
-| `training_metrics.csv`              | `main`                 |
-| `seed_summary.csv`                  | `seeds`                |
-| `drive_ablation.csv`                | `ablation`             |
-| `sensitivity_sweep.csv`             | `sweep`                |
-| `pqc_round_trip.csv`                | `pqc_latency`          |
-| `per_class_accuracy.csv`            | `main`                 |
-| `hardware_fingerprint.csv`          | always                 |
+# Controlled expressivity ablation (Table/Section III-B-1):
+python expressivity_probe.py --depths 1 2 4 --seeds 1 2 3 --epochs 60
 
-## Limitations
+# Latency statistics (local; add --cloud with IBMQ_TOKEN/IBMQ_CRN set):
+python measure_e2e_latency.py
 
-- The PQC is fixed and offline. The drive-ablation experiment in the
-  paper makes this fully transparent: the analysis isolates I/O cost,
-  not quantum expressivity.
-- Energy estimates use order-of-magnitude per-operation constants
-  (0.4 pJ MAC, 2.5 pJ event routing) and assume a hypothetical
-  fully-INT4 deployment; the constants are not from a primary source
-  and are clearly flagged as such in the paper.
-- Per-sample inference latency at B=1 is dominated by Python loop
-  overhead and CUDA kernel launches; a production inference runtime
-  would lower this floor.
+# End-to-end additive-model validation (Section III-C):
+python e2e_hybrid_validation.py --n-local 200
+python e2e_hybrid_validation.py --cloud --n-cloud 3   # requires IBM credentials
 
-## License
+# Thermal budget (Section III-F):
+python thermal_model.py
+```
+
+Hardware fingerprint of the reference runs: NVIDIA RTX 4070 Laptop GPU
+(8.59 GB, CUDA 12.4), PyTorch 2.5.1, `cudnn.deterministic=True`. Datacentre
+measurements: NVIDIA H100 PCIe (CUDA 12.8, PyTorch 2.7.0). Quantum hardware:
+`ibm_marrakesh` (Heron r2) via the IBM Quantum open plan.
+
+## Honesty notes
+
+* The drive ablation is a **null result by design**: no quantum accuracy
+  advantage is claimed, and none should be inferred from this codebase.
+* IBM open-plan round-trips are scheduling-dominated and are reported as
+  queue-bound upper bounds, not deployed-service latencies.
+* The energy figures produced by `benckmark_programme.py` are
+  order-of-magnitude deployment estimates, not measured device energies.
+
+## Acknowledgements
+
+SHD dataset: University of Heidelberg neuromorphic data repository. Quantum
+simulations: PennyLane. Quantum hardware access: IBM Quantum services
+(`ibm_marrakesh`); the views expressed are those of the authors and do not
+reflect the official policy or position of IBM or the IBM Quantum team.
+Datacentre GPU measurements were performed on a Lambda Cloud H100 instance.
+
+## Licence
 
 MIT.
