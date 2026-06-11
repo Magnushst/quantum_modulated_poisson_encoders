@@ -45,7 +45,6 @@ Key results reproduced by this repository:
 | `e2e_hybrid_validation.py` | End-to-end validation of the additive model with the PQC inline at $B{=}1$ (local backends + IBM hardware) | `e2e_validation.csv` |
 | `measure_e2e_latency.py` | Round-trip latency statistics: local PennyLane backends, loopback proxy, IBM cloud queue | `e2e_latency.csv` |
 | `measure_hw_latency.py` | Datacentre measurements (H100 PCIe): per-sample $T_{\mathrm{core}}(B)$ and PCIe DMA round-trip floor | `hw_latency.json` |
-| `thermal_model.py` | First-order cryogenic heat-balance vs. stage cooling budgets | `thermal_budget.csv` + chart |
 
 ## Measured vs. estimated quantities (disclosure)
 
@@ -86,8 +85,6 @@ python measure_e2e_latency.py
 python e2e_hybrid_validation.py --n-local 200
 python e2e_hybrid_validation.py --cloud --n-cloud 3   # requires IBM credentials
 
-# Thermal budget (Section III-F):
-python thermal_model.py
 ```
 
 Hardware fingerprint of the reference runs: NVIDIA RTX 4070 Laptop GPU
