@@ -46,7 +46,6 @@ Key results reproduced by this repository:
 | `measure_e2e_latency.py` | Round-trip latency statistics: local PennyLane backends, loopback proxy, IBM cloud queue | `e2e_latency.csv` |
 | `measure_hw_latency.py` | Datacentre measurements (H100 PCIe): per-sample $T_{\mathrm{core}}(B)$ and PCIe DMA round-trip floor | `hw_latency.json` |
 | `thermal_model.py` | First-order cryogenic heat-balance vs. stage cooling budgets | `thermal_budget.csv` + chart |
-| `figure_camera_ready.py` | Camera-ready figure rcParams and the system-overview figure | `figures/` |
 
 ## Measured vs. estimated quantities (disclosure)
 
