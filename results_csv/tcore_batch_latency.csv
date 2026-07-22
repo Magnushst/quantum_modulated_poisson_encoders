@@ -1,0 +1,5 @@
+batch_size,t_core_ms,measurement_context
+1,0.8816184628922329,sensitivity sweep: mean per-sample latency times batch size
+16,3.12364225372759,sensitivity sweep: mean per-sample latency times batch size
+64,11.908197222981942,sensitivity sweep: mean per-sample latency times batch size
+256,48.31963937916634,"isolated reference forward loop: 3 warm-up calls, 5 timed calls, CUDA synchronised"

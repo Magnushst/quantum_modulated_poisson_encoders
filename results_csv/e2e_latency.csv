@@ -1,0 +1,6 @@
+backend,n_calls,mean_ms,median_ms,p95_ms,std_ms,source
+Cloud Quantum (measured),5,9523.6466,6269.3926,18736.2128,5012.4181,"measured cloud wall-clock, real QPU (ibm_marrakesh) [n<10: indicative]"
+Cloud Quantum exec-only (measured),5,2000.0,2000.0,2000.0,0.0,"measured cloud exec-only, real QPU (ibm_marrakesh) [n<10: indicative]"
+default.qubit,100,2.2592,2.2223,2.4618,0.1151,measured local (default.qubit)
+lightning.qubit,100,1.0226,1.0087,1.1167,0.0514,measured local (lightning.qubit)
+localhost loopback diagnostic,1000,0.0416,0.0281,0.0888,0.0332,measured localhost software-loopback diagnostic
