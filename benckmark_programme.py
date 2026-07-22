@@ -20,6 +20,7 @@ import torch.nn.functional as F
 ENERGY_PER_MAC_PJ = 0.4
 ENERGY_PER_ROUTE_PJ = 2.5
 CLOUD_QPU_LATENCY_MS = 50.0
+REFERENCE_T_CORE_MS = 48.31963937916634
 
 ENCODER_WIDTH_DEFAULT = 4096
 TIME_STEPS = 100
@@ -49,9 +50,14 @@ COLOUR_NEUTRAL = '#7f7f7f'
 
 plt.rcParams.update({
     'font.family': 'serif',
-    'font.size': 12,
+    'font.size': 14,
+    'axes.titlesize': 18,
+    'axes.labelsize': 15,
+    'xtick.labelsize': 13,
+    'ytick.labelsize': 13,
+    'legend.fontsize': 13,
     'axes.linewidth': 1.5,
-    'lines.linewidth': 2.0,
+    'lines.linewidth': 2.4,
     'figure.dpi': 200,
     'savefig.dpi': 600,
     'axes.grid': True,
@@ -226,13 +232,14 @@ def measure_pqc_round_trip(n_calls: int = 100) -> dict:
 def save_high_res_figure(fig, filename: str) -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     for ext in ('png', 'pdf', 'tiff', 'svg'):
-        fig.savefig(OUTPUT_DIR / f"{filename}.{ext}", dpi=600, format=ext, bbox_inches='tight')
+        fig.savefig(OUTPUT_DIR / f"{filename}.{ext}", dpi=600, format=ext,
+                    bbox_inches='tight', pad_inches=0.18)
 
 def plot_latent_drive(drive: torch.Tensor) -> None:
-    fig, ax = plt.subplots(figsize=(10, 4))
+    fig, ax = plt.subplots(figsize=(11.5, 5.2))
     w = drive.cpu().numpy()
-    ax.plot(w, color=COLOUR_PRIMARY, linewidth=2.5)
-    ax.fill_between(range(len(w)), w, color=COLOUR_PRIMARY, alpha=0.15)
+    ax.plot(w, color=COLOUR_PRIMARY, linewidth=3.0)
+    ax.fill_between(range(len(w)), w, color=COLOUR_PRIMARY, alpha=0.18)
     ax.set_title(r"PQC-Modulated Macroscopic Population Drive ($\lambda(t)$)", fontweight='bold')
     ax.set_xlabel("Time Step")
     ax.set_ylabel("Drive Intensity")
@@ -240,9 +247,9 @@ def plot_latent_drive(drive: torch.Tensor) -> None:
     plt.close(fig)
 
 def plot_raster(spikes: torch.Tensor, epoch: int) -> None:
-    fig, ax = plt.subplots(figsize=(10, 4))
+    fig, ax = plt.subplots(figsize=(11.5, 5.2))
     t_idx, u_idx = np.where(spikes[0, :, :100].detach().cpu().numpy())
-    ax.scatter(t_idx, u_idx, s=6, c=COLOUR_PRIMARY, marker='|', alpha=0.9)
+    ax.scatter(t_idx, u_idx, s=11, c=COLOUR_PRIMARY, marker='|', alpha=0.9)
     ax.set_title(f"Encoder Raster Activity Snapshot (Epoch {epoch})", fontweight='bold')
     ax.set_xlabel("Time Step")
     ax.set_ylabel("Encoder Unit ID")
@@ -287,16 +294,44 @@ def plot_latency_sweep(core_s: float) -> list[float]:
         overheads.append(ovh)
         print(f"  {arch:<20} | I/O = {lat_ms:<7} ms | Overhead = {ovh:>7.4f}%")
 
-    fig, ax = plt.subplots(figsize=(9, 6))
-    ax.plot(LATENCY_BENCHMARKS_MS, overheads, marker='o', markersize=9,
-            color=COLOUR_PRIMARY, linewidth=2.5, zorder=3)
+    fig, ax = plt.subplots(figsize=(3.45, 2.5))
+    ax.plot(LATENCY_BENCHMARKS_MS, overheads, marker='o', markersize=4.5,
+            color=COLOUR_PRIMARY, linewidth=1.5, zorder=3)
+    label_layout = {
+        "Cloud Quantum": ((-4, 12), "right"),
+        "PCIe Local": ((4, -8), "left"),
+        "MCM Chiplet": ((0, 7), "center"),
+        "Advanced CPO": ((0, 7), "center"),
+        "Monolithic TSV": ((4, 6), "left"),
+    }
     for i, name in enumerate(ARCHITECTURES):
-        ax.annotate(f" {name}", (LATENCY_BENCHMARKS_MS[i], overheads[i]),
-                    fontsize=11, color=COLOUR_NEUTRAL, xytext=(5, 5), textcoords='offset points')
+        text_position, alignment = label_layout[name]
+        ax.annotate(
+            name,
+            (LATENCY_BENCHMARKS_MS[i], overheads[i]),
+            fontsize=6.8,
+            color=COLOUR_NEUTRAL,
+            xytext=text_position,
+            textcoords='offset points',
+            ha=alignment,
+            va='center',
+            bbox=dict(boxstyle='round,pad=0.12', facecolor='white',
+                      edgecolor='none', alpha=0.9),
+            arrowprops=dict(arrowstyle='-', color=COLOUR_NEUTRAL,
+                            linewidth=0.8, alpha=0.8),
+            annotation_clip=False,
+        )
     ax.set_xscale('log')
-    ax.set_title("QPU I/O Latency vs. System Overhead", fontweight='bold')
-    ax.set_xlabel("Hardware Integration Latency (ms) [Log Scale]")
-    ax.set_ylabel("QPU Synchronisation Penalty (%)")
+    ax.set_yscale('log')
+    ax.axhline(1.0, color=COLOUR_DANGER, linestyle='--', linewidth=0.9,
+               alpha=0.85, label='1% budget')
+    ax.margins(x=0.09, y=0.18)
+    ax.set_title("QPU I/O Latency vs. System Overhead", fontweight='bold', fontsize=8.5)
+    ax.set_xlabel("Integration Latency (ms) [log]", fontsize=7.2)
+    ax.set_ylabel("Synchronisation Penalty (%) [log]", fontsize=7.2)
+    ax.tick_params(axis='both', which='both', labelsize=6.5)
+    ax.legend(loc='lower right', fontsize=6.4, frameon=True)
+    fig.tight_layout(pad=0.25)
     save_high_res_figure(fig, "latency_overhead")
     plt.close(fig)
     return overheads
@@ -324,20 +359,33 @@ def plot_latency_vs_batch(core_times_per_batch: dict[int, float]) -> None:
 
 def plot_breakeven(core_times: dict[int, float], threshold_pct: float = 1.0) -> None:
     """tau_breakeven = (p/100)/(1 - p/100) * T_core, plotted vs batch."""
-    fig, ax = plt.subplots(figsize=(9, 6))
+    fig, ax = plt.subplots(figsize=(10.5, 7.2))
     batches = sorted(core_times)
     p = threshold_pct / 100.0
     breakeven_ms = [(p / (1 - p)) * core_times[b] * 1000.0 for b in batches]
-    ax.plot(batches, breakeven_ms, marker='s', linewidth=2.2, color=COLOUR_DANGER, label=f"Break-even ({threshold_pct}%)")
+    ax.plot(batches, breakeven_ms, marker='s', markersize=8, linewidth=2.6,
+            color=COLOUR_DANGER, label=f"Break-even ({threshold_pct}%)")
     for arch, lat_ms in zip(ARCHITECTURES, LATENCY_BENCHMARKS_MS):
         ax.axhline(lat_ms, linestyle=':', linewidth=1.0, color=COLOUR_NEUTRAL, alpha=0.7)
-        ax.text(batches[-1], lat_ms, f"  {arch}", fontsize=9, va='center', color=COLOUR_NEUTRAL)
+        ax.annotate(
+            arch,
+            xy=(0.02, lat_ms),
+            xycoords=('axes fraction', 'data'),
+            xytext=(0, 4),
+            textcoords='offset points',
+            fontsize=13,
+            ha='left',
+            va='bottom',
+            color=COLOUR_NEUTRAL,
+            bbox=dict(boxstyle='round,pad=0.18', facecolor='white',
+                      edgecolor='none', alpha=0.9),
+        )
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_xlabel("Inference Batch Size [Log Scale]")
     ax.set_ylabel(r"Maximum Tolerable QPU Round-Trip $\tau_{QPU}^*$ (ms) [Log Scale]")
     ax.set_title(f"Hardware Selection Frontier ({threshold_pct}% Overhead Budget)", fontweight='bold')
-    ax.legend(loc='best')
+    ax.legend(loc='upper right', framealpha=0.95)
     save_high_res_figure(fig, "breakeven_scaling")
     plt.close(fig)
 
@@ -555,8 +603,9 @@ def train_one_run(seed: int,
     if save_artefacts:
         plot_energy_breakdown(energy_mac_J, energy_route_J)
         # Use inference time per batch (B * t_sample), not training epoch time.
-        T_core_inference = mean_inf_per_sample_ms / 1000.0 * batch_size
-        plot_latency_sweep(T_core_inference)
+        # The paper's reference figure uses the isolated, paging-free B=256
+        # measurement rather than the full-run timing collected above.
+        plot_latency_sweep(REFERENCE_T_CORE_MS / 1000.0)
 
     return {
         "seed": seed,
@@ -777,6 +826,22 @@ def main() -> None:
             if sweep_core_times:
                 plot_latency_vs_batch(sweep_core_times)
                 plot_breakeven(sweep_core_times, threshold_pct=1.0)
+                write_csv(
+                    OUTPUT_DIR / "tcore_batch_latency.csv",
+                    [
+                        {
+                            "batch_size": b,
+                            "t_core_ms": sweep_core_times[b] * 1000.0,
+                            "measurement_context": (
+                                "isolated reference forward loop: 3 warm-up calls, "
+                                "5 timed calls, CUDA synchronised"
+                                if b == 256
+                                else "sensitivity sweep: mean per-sample latency times batch size"
+                            ),
+                        }
+                        for b in sorted(sweep_core_times)
+                    ],
+                )
             print("\n--- Clean batch-scaling T_core(B) used for figures ---")
             for b in sorted(sweep_core_times):
                 print(f"  B={b:>3}: T_core = {sweep_core_times[b]*1000:>7.2f} ms")

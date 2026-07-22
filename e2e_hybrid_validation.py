@@ -1,22 +1,22 @@
 """
 e2e_hybrid_validation.py
 ========================
-Validates the additive overhead model (Eq. 2 of the paper) END-TO-END by
-executing the full hybrid pipeline as a real system: the 8-qubit PQC is
+Evaluates the additive overhead model (Eq. 2 of the paper) END-TO-END by
+executing the full hybrid pipeline in a running configuration: the 8-qubit PQC is
 evaluated INLINE in the B=1 inference path, the whole call is timed with one
 wall-clock, and the components (tau_QPU, classical forward) are timed inside.
 
 Validation criterion: the unmodelled residual
         gap = E2E_total - (tau_QPU + T_forward)
-should be a small fraction of E2E_total. A small gap means the additive model
-T_total = T_core + tau_QPU holds on a real running hybrid system -- which is
-exactly the end-to-end validation Reviewer 2 requested. We also compare the
-inline forward time against an isolated forward-only measurement to detect
-contention between the QPU call and the GPU pipeline.
+quantifies the unmodelled scheduling and software cost around the additive
+decomposition. We report both its absolute value and its E2E fraction rather
+than imposing a hidden pass/fail threshold. We also compare the inline forward
+time against an isolated forward-only measurement to detect contention between
+the QPU call and the GPU pipeline.
 
-Three real systems are validated:
-  LOCAL : laptop + default.qubit, laptop + lightning.qubit (no cost)
-  CLOUD : laptop + ibm_marrakesh inline (--cloud; ~3 jobs of QPU budget)
+Three configurations are evaluated:
+  LOCAL : laptop + default.qubit, laptop + lightning.qubit (software baselines)
+  CLOUD : laptop + ibm_marrakesh inline (--cloud; hardware experiment)
 
 RUN (on the SAME laptop used for the paper's T_core numbers):
     python e2e_hybrid_validation.py                       # local only

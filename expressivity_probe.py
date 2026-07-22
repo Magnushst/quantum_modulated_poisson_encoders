@@ -1,23 +1,19 @@
 """
-expressivity_probe.py  --  ROADMAP B, SCRIPT 1 (THE GATE)
-=========================================================
-Question this script answers, definitively and honestly:
+expressivity_probe.py  --  CONTROLLED EXPRESSIVITY ABLATION
+===========================================================
+Question this script answers:
     "Once the PQC drive is input-conditioned (lambda depends on x) and the
      entangling depth is increased, does the quantum circuit buy ANY accuracy
-     that a classical surrogate of equal parameter count cannot?"
+     that a classical surrogate under a controlled parameter budget cannot?"
 
-If YES (pqc beats sine AND constant by > 2 sigma at depth >= 2): you have a
-quantum-dependent contribution and Roadmap B is live. Proceed to B2.
-
-If NO: STOP. You do not have a quantum result. Do not run B2. The honest move
-is to reframe the paper as a classical hybrid-I/O analysis (drop "quantum" from
-the thesis, keep it as the workload generator only). This script is designed to
-give you that answer cleanly either way -- a negative result here is a real
-finding, not a failure, and it protects you from over-claiming in a one-shot R&R.
+The reported separation is normalised by
+sqrt(sigma_PQC^2 + sigma_classical^2). With three seeds it is a transparent
+effect-size diagnostic, not a formal significance test. A null result means the
+PQC remains a workload generator and no accuracy advantage is attributed to it.
 
 OUTPUT:
     expressivity.csv                 (one row per depth x drive x seed)
-    expressivity_verdict.txt         (machine-written PASS/FAIL gate decision)
+    expressivity_verdict.txt         (machine-written ablation summary)
 """
 from __future__ import annotations
 
@@ -139,7 +135,8 @@ class PQCDriveHead(torch.nn.Module):
 class MLPDriveHead(torch.nn.Module):
     def __init__(self, depth: int):
         super().__init__()
-        # Corrected parameter matching calculation
+        # Exact drive-head parameter matching at d=2/4; d=1 uses the smallest
+        # non-zero two-layer head (16 rather than 8 parameters).
         hidden = max(1, (depth * QPU_QUBITS) // (POOL_DIM + QPU_QUBITS))
         self.net = torch.nn.Sequential(
             torch.nn.Linear(POOL_DIM, hidden, bias=False),
@@ -314,7 +311,7 @@ def worker_task(task_args):
 
 def verdict(rows: list[dict]) -> str:
     import statistics as st
-    lines = ["EXPRESSIVITY GATE VERDICT", "=" * 40]
+    lines = ["EXPRESSIVITY ABLATION SUMMARY", "=" * 40]
     passed_any = False
     for d in sorted({r["depth"] for r in rows}):
         sub = {k: [r["test_acc"] for r in rows if r["depth"] == d and r["drive_kind"] == k]
@@ -329,20 +326,17 @@ def verdict(rows: list[dict]) -> str:
         sigma = (mp - mm) / pooled if pooled > 1e-6 else float("nan")
         ok = pooled > 1e-6 and (mp - mm) > 2 * pooled and mp > mc
         passed_any = passed_any or (ok and d >= 2)
-        lines.append(f"depth={d}: pqc={mp:.2f}  mlp(param-matched)={mm:.2f}  "
-                     f"const={mc:.2f}  separation={sigma:+.2f} sigma  "
-                     f"{'PASS' if ok else 'flat'}")
+        lines.append(f"depth={d}: pqc={mp:.2f}  mlp(parameter-count-controlled)={mm:.2f}  "
+                     f"const={mc:.2f}  combined-SD separation={sigma:+.2f}  "
+                     f"{'threshold met' if ok else 'no advantage'}")
     lines.append("=" * 40)
     if passed_any:
-        lines += ["GATE: PASS -- PQC shows >2 sigma advantage over a param-matched",
-                  "classical head at depth>=2. A quantum-dependent contribution exists.",
-                  "PROCEED to noise_fidelity_tradeoff.py (B2)."]
+        lines += ["RESULT: the predeclared >2 combined-SD accuracy threshold is met",
+                  "against the parameter-count-controlled classical head at depth>=2."]
     else:
-        lines += ["GATE: FAIL -- PQC does NOT beat a param-matched classical head.",
-                  "There is NO quantum accuracy advantage on this task. Do NOT run B2.",
-                  "Honest path: reframe as a classical hybrid-I/O analysis; keep the",
-                  "PQC only as a workload generator (the original null result stands).",
-                  "This is a legitimate finding -- report it, do not bury it."]
+        lines += ["RESULT: NULL -- no observed PQC accuracy advantage over the",
+                  "parameter-count-controlled classical head at the tested depths and seeds.",
+                  "The PQC is retained solely as a workload generator for the hybrid-I/O analysis."]
     return "\n".join(lines)
 
 

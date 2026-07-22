@@ -1,13 +1,13 @@
 """
 measure_e2e_latency.py
 ======================
-End-to-end hybrid QPU round-trip measurement for the revision of CAL-2026-05-0136.
+Round-trip measurement suite for the revision of CAL-2026-06-0190.
 
 Purpose (addresses Reviewer 2, comment 3 "validate the model with real
-measurements"): replace the hand-typed LATENCY_BENCHMARKS_MS constants used for
-the cloud row of Table II with at least one *measured* end-to-end
-submit -> queue -> execute -> retrieve round-trip, plus measured local-backend
-round-trips, with proper statistics (median, p95, IQR) rather than a bare mean.
+measurements"): record a measured cloud submit -> queue -> execute -> retrieve
+round-trip alongside separate local-simulator and localhost diagnostics. The
+queue-dominated cloud observation does not replace the paper's explicitly
+illustrative 50 ms dedicated-service scenario.
 
 It writes `e2e_latency.csv` with one row per backend:
     backend, n_calls, mean_ms, median_ms, p95_ms, std_ms, source
@@ -26,11 +26,10 @@ highest-fidelity number available to you.
           available; gives the local-simulation floor already in the paper but
           now with median/p95, not just mean.
 
-  TIER 3  Loopback PCIe-class proxy: a localhost TCP round-trip carrying an
-          8-float payload, isolating the serialisation + syscall + scheduler
-          component of I/O on the actual host. This is an honest *measured*
-          lower bound on any off-die interconnect on your machine, and lets you
-          state the PCIe row as "measured loopback proxy" rather than assumed.
+  TIER 3  Localhost software-loopback diagnostic: a TCP round-trip carrying an
+          8-float payload, isolating serialisation + syscall + scheduler cost on
+          the host. It is neither a PCIe measurement nor an interconnect bound
+          and is not used in the manuscript tables.
 
 Complexity: all timing loops are O(n_calls); negligible compute. Memory O(1).
 
@@ -139,8 +138,8 @@ def tier2_local(n_calls: int) -> list[dict]:
 def tier3_loopback(n_calls: int) -> list[dict]:
     """
     Measure a localhost TCP round-trip of an 8xfloat64 payload. This captures
-    the syscall + scheduler + serialisation cost that any off-die interconnect
-    inherits, on the user's actual host. Honest measured lower bound, not a QPU.
+    host software, syscall, scheduler, and serialisation cost. It is a local
+    diagnostic only, not a QPU or PCIe measurement and not a physical bound.
     """
     payload = struct.pack("8d", *([0.5] * QUBITS))
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -172,7 +171,8 @@ def tier3_loopback(n_calls: int) -> list[dict]:
     samples = time_loop(one_rt, n_calls)
     cli.close()
     srv.close()
-    row = _stats(samples, "measured localhost loopback proxy", "PCIe-class loopback")
+    row = _stats(samples, "measured localhost software-loopback diagnostic",
+                 "localhost loopback diagnostic")
     print(f"[tier3] loopback proxy: median {row['median_ms']} ms")
     return [row]
 
@@ -271,8 +271,9 @@ def main() -> None:
         w.writeheader()
         w.writerows(rows)
     print(f"\nWrote {OUT.resolve()} with {len(rows)} rows.")
-    print("Use the highest-fidelity row available (Tier 1 cloud > Tier 2 local > Tier 3 loopback)")
-    print("as the 'Measured cloud queue' / PCIe rows in Table II of the revision.")
+    print("Cloud, local-simulator, and localhost rows are separate diagnostics.")
+    print("Do not substitute the queue-dominated cloud or localhost rows for the paper's")
+    print("explicitly illustrative interface scenarios.")
 
 
 if __name__ == "__main__":
