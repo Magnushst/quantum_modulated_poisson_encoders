@@ -5,7 +5,7 @@
 Official benchmark implementation and measurement suite for the paper:
 **"Quantum-Modulated Poisson Encoders for Hybrid QPU Workloads: A Closed-Form
 Hardware-Selection Frontier for Edge Inference"** (IEEE Computer Architecture
-Letters, under review).
+Letters).
 
 ## Overview
 
