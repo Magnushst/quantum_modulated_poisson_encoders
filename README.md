@@ -136,7 +136,7 @@ across different hardware, drivers, and library versions is not asserted.
 
 SHD dataset: University of Heidelberg neuromorphic data repository. Quantum
 simulations: PennyLane. Quantum hardware access: IBM Quantum services
-(`ibm_marrakesh`); the views expressed are those of the authors and do not
+(`ibm_marrakesh`); the views expressed are those of the author and do not
 reflect the official policy or position of IBM or the IBM Quantum team.
 Datacentre GPU measurements were performed on a Lambda Cloud H100 instance.
 
