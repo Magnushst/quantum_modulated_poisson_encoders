@@ -40,8 +40,8 @@ Key results reproduced by this repository:
   `ibm_marrakesh` superconducting QPU: median per-call residuals of
   0.35/0.52 ms (7.8/17.7%) locally and 1.91 ms (0.009%) on hardware.
 * Under the paper's illustrative 1% criterion, a first-order cryogenic
-  thermal-budget analysis shows that monolithic TSV --- the only
-  latency-feasible $B{=}1$ scenario --- violates the mK cooling budget by five
+  thermal-budget analysis shows that monolithic TSV--the only
+  latency-feasible $B{=}1$ scenario--violates the mK cooling budget by five
   to six orders of magnitude.
 
 ## Repository layout
