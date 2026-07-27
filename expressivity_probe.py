@@ -46,40 +46,55 @@ OUT_VERDICT = Path("expressivity_verdict.txt")
 
 
 # ---------------------------------------------------------------------------
-# Data: reuse SHD if available, else the same random surrogate as the main code
+# Data: require SHD for publication reproduction; surrogate only for --smoke
 # ---------------------------------------------------------------------------
-def load_data():
-    try:
-        import h5py  # noqa: F401
-        from pathlib import Path as _P
-        cache = _P("data")
-        train_p, test_p = cache / "shd_train.h5", cache / "shd_test.h5"
-        if train_p.exists() and test_p.exists():
-            import h5py
-            def proc(fp):
-                with h5py.File(fp, "r") as f:
-                    units = f["spikes"]["units"][:]
-                    times = f["spikes"]["times"][:]
-                    labels = f["labels"][:]
-                X = torch.zeros((len(labels), TIME_STEPS, INPUT_CHANNELS))
-                for i in range(len(labels)):
-                    if len(units[i]) > 0:
-                        ti = np.clip((times[i] * TIME_STEPS).astype(int), 0, TIME_STEPS - 1)
-                        X[i, ti, units[i]] = 1.0
-                return X, torch.tensor(labels, dtype=torch.long)
-            Xtr, ytr = proc(train_p)
-            Xte, yte = proc(test_p)
-            print(f"[data] SHD loaded: train={tuple(Xtr.shape)} test={tuple(Xte.shape)}")
-            return Xtr, ytr, Xte, yte
-    except Exception as e:
-        print(f"[data] SHD unavailable ({e}); using random surrogate.")
-    
-    # surrogate
+def surrogate_data():
     g = torch.Generator().manual_seed(0)
     Xtr = (torch.rand(256, TIME_STEPS, INPUT_CHANNELS, generator=g) < 0.03).float()
     ytr = torch.randint(0, NUM_CLASSES, (256,), generator=g)
     Xte = (torch.rand(64, TIME_STEPS, INPUT_CHANNELS, generator=g) < 0.03).float()
     yte = torch.randint(0, NUM_CLASSES, (64,), generator=g)
+    return Xtr, ytr, Xte, yte
+
+
+def load_data(allow_surrogate: bool = False):
+    try:
+        import h5py
+    except ImportError as exc:
+        if allow_surrogate:
+            print("[data] h5py unavailable; using seeded surrogate for smoke test only.")
+            return surrogate_data()
+        raise RuntimeError(
+            "h5py is required for the publication ablation. "
+            "Install it with `pip install h5py`."
+        ) from exc
+
+    cache = Path("data")
+    train_p, test_p = cache / "shd_train.h5", cache / "shd_test.h5"
+    if not (train_p.exists() and test_p.exists()):
+        if allow_surrogate:
+            print("[data] SHD files absent; using seeded surrogate for smoke test only.")
+            return surrogate_data()
+        raise FileNotFoundError(
+            "SHD files not found. Place shd_train.h5 and shd_test.h5 in ./data/ "
+            "before reproducing the publication ablation."
+        )
+
+    def proc(fp):
+        with h5py.File(fp, "r") as f:
+            units = f["spikes"]["units"][:]
+            times = f["spikes"]["times"][:]
+            labels = f["labels"][:]
+        X = torch.zeros((len(labels), TIME_STEPS, INPUT_CHANNELS))
+        for i in range(len(labels)):
+            if len(units[i]) > 0:
+                ti = np.clip((times[i] * TIME_STEPS).astype(int), 0, TIME_STEPS - 1)
+                X[i, ti, units[i]] = 1.0
+        return X, torch.tensor(labels, dtype=torch.long)
+
+    Xtr, ytr = proc(train_p)
+    Xte, yte = proc(test_p)
+    print(f"[data] SHD loaded: train={tuple(Xtr.shape)} test={tuple(Xte.shape)}")
     return Xtr, ytr, Xte, yte
 
 
@@ -353,7 +368,7 @@ def main():
     if args.smoke:
         args.epochs = min(args.epochs, 15)
     
-    Xtr, ytr, Xte, yte = load_data()
+    Xtr, ytr, Xte, yte = load_data(allow_surrogate=args.smoke)
 
     # Sequential, single process. The 21 runs are each a full training; the
     # speedup comes from batched PQC evaluation inside each run, not from

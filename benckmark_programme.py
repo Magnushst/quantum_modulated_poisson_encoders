@@ -68,16 +68,20 @@ plt.rcParams.update({
 try:
     import pennylane as qml
     HAS_PENNYLANE = True
-except ImportError:
-    HAS_PENNYLANE = False
-    print("[warn] PennyLane not installed; classical sinusoidal surrogate will be used for the latent drive.")
+except ImportError as exc:
+    raise RuntimeError(
+        "PennyLane is required for the publication benchmark. "
+        "Install it with `pip install pennylane`."
+    ) from exc
 
 try:
     import h5py
     HAS_H5PY = True
-except ImportError:
-    HAS_H5PY = False
-    print("[warn] h5py not installed; SHD download path is disabled, random surrogate data will be used.")
+except ImportError as exc:
+    raise RuntimeError(
+        "h5py is required to load the SHD publication dataset. "
+        "Install it with `pip install h5py`."
+    ) from exc
 
 
 def seed_all(seed: int) -> None:
@@ -108,17 +112,10 @@ def hardware_fingerprint() -> dict:
 
 
 def get_shd_dataset(cache_dir: str = "data"):
-    """Loads SHD or returns a small random surrogate if h5py is unavailable."""
+    """Load SHD, downloading the two archives when they are not cached."""
     cache = Path(cache_dir)
     cache.mkdir(parents=True, exist_ok=True)
     train_path, test_path = cache / "shd_train.h5", cache / "shd_test.h5"
-
-    if not HAS_H5PY:
-        X_train = (torch.rand(256, TIME_STEPS, INPUT_CHANNELS) < 0.03).float()
-        y_train = torch.randint(0, NUM_CLASSES, (256,))
-        X_test = (torch.rand(64, TIME_STEPS, INPUT_CHANNELS) < 0.03).float()
-        y_test = torch.randint(0, NUM_CLASSES, (64,))
-        return X_train, y_train, X_test, y_test
 
     if not (train_path.exists() and test_path.exists()):
         print("Downloading SHD dataset...")

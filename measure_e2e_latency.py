@@ -1,12 +1,11 @@
 """
 measure_e2e_latency.py
 ======================
-Round-trip measurement suite for the revision of CAL-2026-06-0190.
+Round-trip measurement suite for CAL-2026-06-0190.
 
-Purpose (addresses Reviewer 2, comment 3 "validate the model with real
-measurements"): record a measured cloud submit -> queue -> execute -> retrieve
-round-trip alongside separate local-simulator and localhost diagnostics. The
-queue-dominated cloud observation does not replace the paper's explicitly
+Purpose: record a measured cloud submit -> queue -> execute -> retrieve
+round-trip alongside separate local-simulator and localhost diagnostics.
+The queue-dominated cloud observation does not replace the paper's explicitly
 illustrative 50 ms dedicated-service scenario.
 
 It writes `e2e_latency.csv` with one row per backend:
@@ -16,11 +15,11 @@ Three measurement tiers, in decreasing order of fidelity. The script runs every
 tier it can and records which one succeeded so the manuscript can cite the
 highest-fidelity number available to you.
 
-  TIER 1  Real cloud QPU/simulator queue (IBM Quantum via qiskit-ibm-runtime).
-          This is a genuine network + queue + execution round-trip and is the
-          number Reviewer 2 actually wants. Requires a free IBM Quantum token
-          in the env var IBMQ_TOKEN. Uses the *least-busy* backend or the hosted
-          statevector simulator if no hardware is free, and reports which.
+  TIER 1  Real cloud QPU queue (IBM Quantum via qiskit-ibm-runtime).
+          This is a genuine network + queue + execution round-trip. It requires
+          an IBM Quantum token in IBMQ_TOKEN and an instance CRN in IBMQ_CRN.
+          It uses the least-busy operational QPU when available and reports the
+          backend selected.
 
   TIER 2  Local PennyLane backends (default.qubit, lightning.qubit). Always
           available; gives the local-simulation floor already in the paper but
@@ -178,7 +177,7 @@ def tier3_loopback(n_calls: int) -> list[dict]:
 
 
 # ----------------------------------------------------------------------------
-# TIER 1: real cloud QPU / hosted simulator round-trip (IBM Quantum)
+# TIER 1: real cloud QPU round-trip (IBM Quantum)
 # ----------------------------------------------------------------------------
 def tier1_cloud(n_calls: int, shots: int) -> list[dict]:
     token = os.environ.get("IBMQ_TOKEN")
@@ -203,12 +202,8 @@ def tier1_cloud(n_calls: int, shots: int) -> list[dict]:
         token=token,
         instance=crn,
     )
-    try:
-        backend = service.least_busy(operational=True, simulator=False)
-        kind = f"real QPU ({backend.name})"
-    except Exception:
-        backend = service.backends()[0]
-        kind = f"fallback backend ({backend.name})"
+    backend = service.least_busy(operational=True, simulator=False)
+    kind = f"real QPU ({backend.name})"
     print(f"[tier1] using {kind}")
 
     qc = QuantumCircuit(QUBITS)

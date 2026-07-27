@@ -174,7 +174,11 @@ def validate_cloud(model: Enc, n: int, iso_ms: float) -> dict | None:
     except ImportError:
         print("[cloud] qiskit-ibm-runtime missing; skipping.")
         return None
-    svc = QiskitRuntimeService(channel="ibm_cloud", token=token, instance=crn)
+    svc = QiskitRuntimeService(
+        channel="ibm_quantum_platform",
+        token=token,
+        instance=crn,
+    )
     backend = svc.least_busy(operational=True, simulator=False)
     print(f"[cloud] using {backend.name}")
 
