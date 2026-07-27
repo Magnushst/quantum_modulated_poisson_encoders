@@ -12,9 +12,9 @@ Letters).
 Hybrid classical-quantum inference can be bottlenecked by the QPU-classical I/O
 interface, and saturated-batch overhead figures can materially understate the
 cost at the single-query ($B{=}1$) operating
-point. This repository provides a deterministic, reproducible workload --- a
+point. This repository provides a deterministic, reproducible workload--a
 non-homogeneous Poisson encoder modulated by an 8-qubit Parametrised Quantum
-Circuit (PQC) --- that is **deliberately engineered so the quantum circuit is
+Circuit (PQC)--that is **deliberately engineered so the quantum circuit is
 non-contributory to accuracy** (verified by a controlled,
 parameter-count-controlled ablation). This controlled design lets the latency
 frontier characterise the *interface* for circuits with comparable aggregate
