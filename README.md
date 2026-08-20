@@ -123,15 +123,6 @@ measurements: NVIDIA H100 PCIe (CUDA 12.8, PyTorch 2.7.0). Quantum hardware:
 The scripts use seeded deterministic settings, but exact bitwise equality
 across different hardware, drivers, and library versions is not asserted.
 
-## Honesty notes
-
-* The drive ablation is a **null result by design**: no quantum accuracy
-  advantage is claimed, and none should be inferred from this codebase.
-* IBM open-plan round-trips are scheduling-dominated observations, not
-  deployed-service latencies or bounds on dedicated-service performance.
-* The energy figures produced by `benckmark_programme.py` are
-  order-of-magnitude deployment estimates, not measured device energies.
-
 ## Acknowledgements
 
 SHD dataset: University of Heidelberg neuromorphic data repository. Quantum
